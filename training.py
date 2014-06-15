@@ -43,7 +43,7 @@ def create_image(input):
 
     image = misc.toimage(im_r).crop((0, 0, 28, 28))
 
-    image.save('%s/%s/%s.jpg' % (training_dir, txt, i), 'JPEG')
+    image.save('%s/%s/%s.jpg' % (training_dir, ord(txt), i), 'JPEG')
     
 def create_dir(dir):
     if not exists(dir):
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     fonts = load_fonts()
 
     for c in charset:
-        create_dir('%s/%s' % (training_dir, c))
+        create_dir('%s/%s' % (training_dir, ord(c)))
         # Generate training data
         pool = ThreadPool(processes=16)
         pool.map(create_image, [(c, i, fonts, training_dir) for i in xrange(5000)])
