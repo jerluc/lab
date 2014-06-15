@@ -7,11 +7,11 @@ from scipy import misc, ndimage
 from PIL import Image, ImageDraw, ImageFont
 from os import listdir, makedirs
 from os.path import isfile, abspath, join, dirname, exists
-from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import Pool
 
 font_dir = './data/fonts'
 charset = string.ascii_letters + string.digits
-sample_size = 10000
+sample_size = 5000
 height, width = 28, 28
 
 def load_fonts():
@@ -28,7 +28,7 @@ def create_image(input):
     bgshade = random.randint(128, 256)
     bgcolor = (bgshade, bgshade, bgshade)
     font_face = rand_font()
-    fontsize = random.randint(16, 28)
+    fontsize = 28#random.randint(16, 28)
     font = ImageFont.truetype(font_face, size=fontsize)
     txt_width, txt_height = font.getsize(txt)
     x, y = 0, 0 
@@ -55,15 +55,18 @@ if __name__ == '__main__':
     # Load fonts
     fonts = load_fonts()
 
-    pool = ThreadPool(processes=16)
+    pool = Pool(processes=16)
 
     f_dim = len(charset) * sample_size
 
     labels = np.ndarray([f_dim])
     features = np.ndarray([labels.shape[0], width * height])
+    sys.stdout.write('Generating dataset:')
+    sys.stdout.flush()
     for i in range(len(charset)):
         c = charset[i]
-        print('Generating data for character "%s"' % c)
+        sys.stdout.write(' %s' % c)
+        sys.stdout.flush()
         images = pool.map(create_image, [(c, fonts) for _ in xrange(sample_size)])
         assert len(images) == sample_size
 
@@ -76,7 +79,7 @@ if __name__ == '__main__':
 
     
 
-    print('Splitting out training data from test and validation sets')
+    print('\nSplitting out training data from test and validation sets')
     randomized = [i for i in range(f_dim)]
     random.shuffle(randomized)
     
