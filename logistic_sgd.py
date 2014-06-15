@@ -172,7 +172,7 @@ def load_data(dataset):
     print '... loading data'
 
     # Load the dataset
-    f = gzip.open(dataset, 'rb')
+    f = gzip.open(dataset, 'rb') if dataset.endswith('.gz') else open(dataset, 'rb')
     train_set, valid_set, test_set = cPickle.load(f)
     f.close()
     #train_set, valid_set, test_set format: tuple(input, target)
@@ -373,7 +373,6 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.1fs' % ((end_time - start_time)))
-    weights, biases = [p.get_value() for p in classifier.params]
 
 if __name__ == '__main__':
-    sgd_optimization_mnist(dataset=sys.argv[1])
+    sgd_optimization_mnist()
