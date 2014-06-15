@@ -1,6 +1,8 @@
 import sys
 import string
 import random
+import cPickle
+import numpy as np
 from scipy import misc, ndimage
 from PIL import Image, ImageDraw, ImageFont
 from os import listdir, makedirs
@@ -8,8 +10,9 @@ from os.path import isfile, abspath, join, dirname, exists
 from multiprocessing.pool import ThreadPool
 
 font_dir = './data/fonts'
-
 charset = string.ascii_letters + string.digits
+sample_size = 10000
+height, width = 28, 28
 
 def load_fonts():
     fonts = [f for f in listdir(font_dir) if isfile(join(font_dir, f)) and 'ttf' in f]
@@ -20,9 +23,8 @@ def rand_font():
     return '%s/%s' % (font_dir, random.choice(fonts))
 
 def create_image(input):
-    txt, i, fonts, training_dir = input
+    txt, fonts = input
 
-    height, width = 28, 28 
     bgshade = random.randint(128, 256)
     bgcolor = (bgshade, bgshade, bgshade)
     font_face = rand_font()
@@ -30,7 +32,7 @@ def create_image(input):
     font = ImageFont.truetype(font_face, size=fontsize)
     txt_width, txt_height = font.getsize(txt)
     x, y = 0, 0 
-    fgshade = random.randint(0, bgshade - 50)
+    fgshade = random.randint(0, bgshade - 75)
     fgcolor = (fgshade, fgshade, fgshade)
     
     image = Image.new('RGBA', (height, width), bgcolor)
@@ -43,26 +45,58 @@ def create_image(input):
 
     image = misc.toimage(im_r).crop((0, 0, 28, 28))
 
-    image.save('%s/%s/%s.jpg' % (training_dir, ord(txt), i), 'JPEG')
+    return misc.fromimage(image, flatten=1).flatten()
     
-def create_dir(dir):
-    if not exists(dir):
-        makedirs(dir)
 
 if __name__ == '__main__':
-    assert len(sys.argv) == 2, 'Usage: python training.py TRAINING_DIR'
-    training_dir = sys.argv[1]
-
     # Setup directories
-    create_dir(font_dir)
-    create_dir(training_dir)
+    assert exists(font_dir), 'Font directory must exist'
 
     # Load fonts
     fonts = load_fonts()
 
-    for c in charset:
-        create_dir('%s/%s' % (training_dir, ord(c)))
-        # Generate training data
-        pool = ThreadPool(processes=16)
-        pool.map(create_image, [(c, i, fonts, training_dir) for i in xrange(5000)])
+    pool = ThreadPool(processes=16)
+
+    f_dim = len(charset) * sample_size
+
+    labels = np.ndarray([f_dim])
+    features = np.ndarray([labels.shape[0], width * height])
+    for i in range(len(charset)):
+        c = charset[i]
+        print('Generating data for character "%s"' % c)
+        images = pool.map(create_image, [(c, fonts) for _ in xrange(sample_size)])
+        assert len(images) == sample_size
+
+        for j in range(len(images)):
+            idx = (i + 1) * j
+            labels[idx] = ord(c)
+            features[idx, :] = images[j]
+
+    assert len(labels) == len(features) == f_dim
+
+    
+
+    print('Splitting out training data from test and validation sets')
+    randomized = [i for i in range(f_dim)]
+    random.shuffle(randomized)
+    
+    idx_train = randomized[:int(.8 * f_dim)]
+    idx_rest = randomized[int(.8 * f_dim):]
+    idx_test, idx_validate = idx_rest[:len(idx_rest) / 2], idx_rest[len(idx_rest) / 2:]
+
+    assert len(idx_train) + len(idx_test) + len(idx_validate) == f_dim
+
+    x_train, y_train = features[idx_train, :], labels[idx_train]
+    x_test, y_test = features[idx_test, :], labels[idx_test]
+    x_validate, y_validate = features[idx_validate, :], labels[idx_validate]
+
+    datasets = [ 
+        [x_train, y_train],
+        [x_validate, y_validate],
+        [x_test, y_test]
+    ]
+
+    print('Saving dataset to file')
+    with open('./charset.pkl', 'w+b') as f:
+        cPickle.dump(datasets, f)
 
