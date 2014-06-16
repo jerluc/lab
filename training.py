@@ -12,7 +12,7 @@ from multiprocessing.pool import Pool
 font_dir = './data/fonts'
 charset = string.ascii_letters + string.digits
 sample_size = 5000
-height, width = 28, 28
+width, height = 28, 28
 
 def load_fonts():
     fonts = [f for f in listdir(font_dir) if isfile(join(font_dir, f)) and 'ttf' in f]
@@ -25,27 +25,34 @@ def rand_font():
 def create_image(input):
     txt, fonts = input
 
-    bgshade = random.randint(128, 256)
-    bgcolor = (bgshade, bgshade, bgshade)
+    bgshade = 0.#random.randint(128, 256)
     font_face = rand_font()
-    fontsize = 28#random.randint(16, 28)
+    fontsize = 20 
     font = ImageFont.truetype(font_face, size=fontsize)
-    txt_width, txt_height = font.getsize(txt)
     x, y = 0, 0 
-    fgshade = random.randint(0, bgshade - 75)
-    fgcolor = (fgshade, fgshade, fgshade)
+    fgshade = 1.#random.randint(0, bgshade - 50)
     
-    image = Image.new('RGBA', (height, width), bgcolor)
+    image = Image.new('F', (width, height), bgshade)
 
     draw = ImageDraw.Draw(image)
-    draw.text((x, y), txt, fgcolor, font=font)
+    draw.text((x, y), txt, fgshade, font=font)
 
-    im_arr = misc.fromimage(image)
-    im_r = ndimage.interpolation.rotate(im_arr, random.randint(-20, 20), cval=bgshade)
+    im_r = misc.fromimage(image)
+    im_r = ndimage.interpolation.rotate(im_r, random.randint(-10, 10), cval=bgshade)
 
-    image = misc.toimage(im_r).crop((0, 0, 28, 28))
+    txt_image = misc.toimage(im_r)
 
-    return misc.fromimage(image, flatten=1).flatten()
+    bg_image = Image.new('F', (width, height), bgshade)
+    txt_image = txt_image.crop(image.getbbox())
+    txt_image = txt_image.resize((20, 20), Image.ANTIALIAS)
+    txt_width, txt_height = txt_image.size
+    bg_image.paste(txt_image, ((width - txt_width) / 2, (height - txt_height) / 2))
+
+    im_r = misc.fromimage(bg_image, flatten=1)
+    
+    flattened = im_r.flatten()
+
+    return flattened
     
 
 if __name__ == '__main__':
@@ -59,45 +66,43 @@ if __name__ == '__main__':
 
     f_dim = len(charset) * sample_size
 
-    labels = np.ndarray([f_dim])
-    features = np.ndarray([labels.shape[0], width * height])
+    labels = np.ndarray([f_dim], dtype='int64')
+    idx = 0
+    features = np.ndarray([labels.shape[0], width * height], dtype='float32')
     sys.stdout.write('Generating dataset:')
     sys.stdout.flush()
     for i in range(len(charset)):
         c = charset[i]
+        assert ord(c) > 0, 'WTF'
         sys.stdout.write(' %s' % c)
         sys.stdout.flush()
         images = pool.map(create_image, [(c, fonts) for _ in xrange(sample_size)])
         assert len(images) == sample_size
 
         for j in range(len(images)):
-            idx = (i + 1) * j
             labels[idx] = ord(c)
             features[idx, :] = images[j]
+            idx += 1
 
     assert len(labels) == len(features) == f_dim
 
-    
+    assert sum(int(i) == 0 for i in labels) == 0, 'Invalid labels'
 
     print('\nSplitting out training data from test and validation sets')
     randomized = [i for i in range(f_dim)]
     random.shuffle(randomized)
     
-    idx_train = randomized[:int(.8 * f_dim)]
-    idx_rest = randomized[int(.8 * f_dim):]
+    idx_train = randomized[:int(.7 * f_dim)]
+    idx_rest = randomized[int(.7 * f_dim):]
     idx_test, idx_validate = idx_rest[:len(idx_rest) / 2], idx_rest[len(idx_rest) / 2:]
 
     assert len(idx_train) + len(idx_test) + len(idx_validate) == f_dim
 
-    x_train, y_train = features[idx_train, :], labels[idx_train]
-    x_test, y_test = features[idx_test, :], labels[idx_test]
-    x_validate, y_validate = features[idx_validate, :], labels[idx_validate]
+    training = features[idx_train, :], labels[idx_train]
+    testing = features[idx_test, :], labels[idx_test]
+    validation = features[idx_validate, :], labels[idx_validate]
 
-    datasets = [ 
-        [x_train, y_train],
-        [x_validate, y_validate],
-        [x_test, y_test]
-    ]
+    datasets = (training, validation, testing)
 
     print('Saving dataset to file')
     with open('./charset.pkl', 'w+b') as f:

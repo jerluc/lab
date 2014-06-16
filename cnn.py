@@ -105,6 +105,7 @@ class LeNetConvPoolLayer(object):
 
 def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
                     dataset='mnist.pkl.gz',
+                    n_out=10,
                     nkerns=[20, 50], batch_size=500):
     """ Demonstrates lenet on MNIST dataset
 
@@ -182,7 +183,7 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
 
     # classify the values of the fully-connected sigmoidal layer
     # changed to 62 outputs: a-z, A-Z, 0-9
-    layer3 = LogisticRegression(input=layer2.output, n_in=500, n_out=62)
+    layer3 = LogisticRegression(input=layer2.output, n_in=500, n_out=n_out)
 
     # the cost we minimize during training is the NLL of the model
     cost = layer3.negative_log_likelihood(y)
@@ -298,7 +299,7 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
 
 if __name__ == '__main__':
     import sys
-    evaluate_lenet5(dataset=sys.argv[1])
+    evaluate_lenet5(dataset=sys.argv[1], n_out=int(sys.argv[2]))
 
 
 def experiment(state, channel):
