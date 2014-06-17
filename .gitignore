@@ -1,2 +1,6 @@
 *.pyc
+build
+dist
+target
+charset.pkl
 .DS_Store

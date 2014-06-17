@@ -25,12 +25,14 @@ def rand_font():
 def create_image(input):
     txt, fonts = input
 
-    bgshade = 0.#random.randint(128, 256)
+    random.randint
+
+    bgshade = (255 - random.randint(128, 255)) / 255.
     font_face = rand_font()
-    fontsize = 20 
+    fontsize = 20
     font = ImageFont.truetype(font_face, size=fontsize)
-    x, y = 0, 0 
-    fgshade = 1.#random.randint(0, bgshade - 50)
+    x, y = 0, 0
+    fgshade = random.randint(128, 255) / 255.
     
     image = Image.new('F', (width, height), bgshade)
 
@@ -80,13 +82,13 @@ if __name__ == '__main__':
         assert len(images) == sample_size
 
         for j in range(len(images)):
-            labels[idx] = ord(c)
+            labels[idx] = i#ord(c)
             features[idx, :] = images[j]
             idx += 1
 
     assert len(labels) == len(features) == f_dim
 
-    assert sum(int(i) == 0 for i in labels) == 0, 'Invalid labels'
+    assert sum(int(i) < len(charset) for i in labels) == len(labels), 'Invalid labels'
 
     print('\nSplitting out training data from test and validation sets')
     randomized = [i for i in range(f_dim)]
